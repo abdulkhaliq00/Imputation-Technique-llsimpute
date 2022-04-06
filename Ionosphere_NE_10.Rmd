@@ -1,0 +1,178 @@
+---
+title: "Local Least Squares Imputation"
+output:
+  pdf_document: default
+  word_document: default
+date: "`r Sys.Date()`"
+---
+#Local Least Squares Imputation Method
+
+The core tidyverse includes the packages that are likely to use in everyday 
+data analysis.
+```{r}
+install.packages("tidyverse")
+```
+To retrive the packages stored in the directory execute library function
+```{r}
+library("tidyverse")
+```
+
+To visualize dataset and getting a brief look into missing data pattern 'visdat' 
+package should be installed. Further pacakages are retrived using library
+```{r}
+install.packages("visdat")
+library("visdat")
+```
+
+To read excel files "readxl" package is installed as by default this is missing
+in tidyverse packages
+```{r}
+install.packages("readxl")
+library("readxl")
+```
+
+Now, dataset should be imported to analysis the missing pattern and perform 
+imputation. Before importing the dataset set the working directory with respect
+to dataset location using session tile. In the below code col_names is set
+false to avoid the first row as column name.
+```{r}
+inc_data <- read_excel("Ionosphere_NE_10.xlsx", col_names  = FALSE)
+```
+
+Change of column names.
+```{r}
+inc_data <- setNames(data.frame(inc_data), c('col1','col2','col3','col4',
+                                             'col5','col6','col7','col8','col9','col10','col11','col12','col13','col14','col15',
+                                             'col16','col17','col18','col19','col20','col21','col22','col23','col24','col25','col26',
+                                             'col27','col28','col29','col30','col31','col32','col33','col34'))
+```
+
+Display colnames
+```{r}
+colnames(inc_data)
+```
+
+
+#Analyzing dataset using below commands:
+
+Overview of the dataset.
+```{r}
+summary(inc_data)
+sum(is.na(inc_data)) #extractsno of missing values.
+```
+
+structure of the dataset
+```{r}
+str(inc_data)
+```
+
+Boxplot for individual columns 
+```{r}
+boxplot(inc_data)
+```
+
+Visualisation of missing data using 'visdat'
+```{r}
+install.packages("visdat")
+library("visdat")
+vis_miss(inc_data, sort_miss = TRUE) # TRUE is set descending order/high percent missing first
+vis_dat(inc_data)
+```
+
+pcaMethods package installation
+```{r}
+if (!require("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("pcaMethods")
+```
+
+Extracting library functions in pcaMethods package
+```{r}
+library(pcaMethods)
+```
+
+Using llsImpute function for imputation.
+In this function parameters are k, correlation, and allVariables
+k is selected based on no: of columns, missing pattern, no: of missing values.
+correlation is selected as per the reference paper.
+allVariables is 'TRUE' for complete variables
+```{r}
+impu_data <- llsImpute(inc_data, k=5, correlation = "pearson", allVariables = TRUE)
+```
+
+The estimated values gets stored in completeObs variable this can be extracted
+using below code chunck
+```{r}
+est_data <- completeObs(impu_data)
+est_data
+```
+
+Formation of data frame for the given array of values
+```{r}
+est_data <- data.frame(est_data)
+```
+
+Checking 'NA' values in estimated dataset
+```{r}
+sum(is.na(est_data))
+```
+Viz for estimated data
+```{r}
+vis_miss(est_data)
+```
+
+Importing original dataset to find NRMS
+```{r}
+ori_data <- read_excel("Ionosphere.xlsx", col_names  = FALSE)
+```
+
+Change of column name
+```{r}
+ori_data <- setNames(data.frame(ori_data), c('col1','col2','col3','col4',
+                                             'col5','col6','col7','col8','col9','col10','col11','col12','col13','col14','col15',
+                                             'col16','col17','col18','col19','col20','col21','col22','col23','col24','col25','col26',
+                                             'col27','col28','col29','col30','col31','col32','col33','col34'))
+```
+
+
+To check datatype and change if required. 
+```{r}
+typeof(ori_data)
+ori_data <- data.matrix(ori_data, rownames.force = NA)
+```
+
+Now, using frobenius method to find the normalized value to calculate NRMS using 'norm' function
+compute norm of a matrix 
+NRMS = || Xest - Xori||/||Xori||
+finding numerator || Xest - Xori|| using norm function, type frobenius form
+```{r}
+diff_data <- (est_data - ori_data)
+typeof(diff_data)
+```
+Convert list to double for normalization 
+```{r}
+diff_data <- data.matrix(diff_data, rownames.force = NA)
+typeof(diff_data)
+```
+
+Top 6 rows for diff_data
+```{r}
+head(diff_data)
+```
+
+Numerator normalization using 'norm()' for NRMS
+```{r}
+num <- norm(diff_data, type = c("F"))
+num
+```
+Denominator normalization using 'norm()' for NRMS
+```{r}
+den <- norm(ori_data, type = c("F"))
+den
+```
+Calculating NRMS
+```{r}
+NRMS <- num/den
+NRMS
+```
